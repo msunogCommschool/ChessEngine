@@ -9,116 +9,133 @@ import (
     "os"
 )
 
+//Issues:
+//Still messes up choosing board for calculations past 1 move in advance
+//Probably an issue with ranging over maps because they don't always go in the same order
+//And that is the only difference in this code from the version with an array
+
+
+
+//Colors:
+//White : 0
+//Black : 1
+
+
+
+//For example comments, I use StartBoard as a fill-in for a board with the starting position
+
+//Some functions don't have an example because they return a board or a list of board
+//And it would be confusing to write out that output
+//For these functions, I wrote * instead of an example comment
+
+
 
 type Piece struct {
     Name string
     Color int
-    PosX int
-    PosY int
-}
-
-type Board struct {
-    Pieces []Piece
 }
 
 
+//string int int int -> Piece
 //Returns a struct Piece with given values
-func makePiece(name string, color int, x int, y int) Piece {
+//makePiece("pawn", 1) -> Piece{Name: "pawn", Color: 1}
+func makePiece(name string, color int) Piece {
     piece := Piece {
         Name: name,
         Color: color,
-        PosX: x,
-        PosY: y,
     }
     return piece
 }
 
-//returns a new Board with given piece removed
-func (b Board) delPiece(p Piece) Board {
-    newPieces := make([]Piece, 0)
-    i := 0
-    for (i < len(b.Pieces)) {
-        if (b.Pieces[i] != p) {
-            newPieces = append(newPieces, b.Pieces[i])
-        }
-	}
-	newBoard := Board {
-		Pieces: newPieces,
-	}
-    return newBoard
+
+type Pos struct {
+    X int
+    Y int
 }
 
-//returns a new Board with piece at given coords removed
-func (b Board) delPieceAtCoords(x int, y int) Board {
-	newPieces := make([]Piece, 0)
-    i := 0
-    for (i < len(b.Pieces)) {
-        if ((b.Pieces[i].PosX != x) || (b.Pieces[i].PosY != y)) {
-            newPieces = append(newPieces, b.Pieces[i])
-        }
-        i = i + 1
-	}
-	newBoard := Board {
-		Pieces: newPieces,
-	}
-    return newBoard
-}
 
-func (b Board) getPieceAtCoords(x int, y int) Piece {
-    i := 0
-    for (i < len(b.Pieces)) {
-        if ((b.Pieces[i].PosX == x) && (b.Pieces[i].PosY == y)) {
-            return b.Pieces[i]
-        }
-        i = i + 1
+//int int -> Pos
+//Turns two ints into a position type
+//makePos(3, 5) -> Pos{X: 3, Y: 5}
+func makePos(x int, y int) Pos {
+    pos := Pos {
+        X: x,
+        Y: y,
     }
-    return b.Pieces[0]
+    return pos
 }
 
-//adds piece
-func (b Board) addPiece(new Piece) Board {
-    //fmt.Println("addPiece initiated.")
-    newBoard := b.delPieceAtCoords(new.PosX, new.PosY)
-    newBoard.Pieces = append(newBoard.Pieces, new)
-    return newBoard
+
+type Board map[Pos]Piece
+
+
+//[]Board int -> []Board
+//Removes a Board from a list of Boards at loc i
+//remove([B1, B2, B3], 1) -> [B1, B3] 
+func remove(b []Board, i int) []Board {
+    b[len(b) - 1], b[i] = b[i], b[len(b)-1]
+    return b[:len(b) - 1]
 }
 
-//Replaces the old Piece with the new Piece
-func (b Board) makeMove(old Piece, new Piece) Board {
-    //fmt.Println("makeMove initiated.")
-    newBoard := b.delPieceAtCoords(new.PosX, new.PosY)
-    i := 0
-    for (i < len(newBoard.Pieces)) {
-        if (newBoard.Pieces[i] == old) {
-            newBoard.Pieces[i] = new
-        }
-        i = i + 1
+
+//Board -> Board
+//Returns a copy of the given Board
+//boardA.Copy() -> boardB (where BoardB == BoardA)
+func (b Board) copy() Board {
+    newB := make(map[Pos]Piece)
+    for k, v := range b {
+        newB[k] = v
     }
-    //fmt.Println("makeMove resolved.")
-    return newBoard
+    return newB
 }
 
+
+//Board Pos Pos Piece -> Board
+//Replaces a given (from) Pos with a given toPiece at toPos
+//*
+func (b Board) makeMove(from Pos, toPos Pos, toPiece Piece) Board {
+    newB := b.copy()
+
+    _, existsFrom := newB[from]
+    if (existsFrom) {
+        newB[toPos] = toPiece
+        delete(newB, from)
+    }
+    return newB
+}
+
+
+//Board Pos Pos -> Board
+//Returns makeMove with the given arguments and the piece from the fromPos
+//*
+func (b Board) makeMovePos(from Pos, to Pos) Board {
+    return b.makeMove(from, to, b[from])
+}
+
+
+//Board Pos -> int
 //Returns -1 if no piece at coords, color of piece otherwise
-func (b Board) checkOpen(x int, y int) int {
-    i := 0
-    for (i < len(b.Pieces)) {
-        if (b.Pieces[i].PosX == x) {
-            if (b.Pieces[i].PosY == y) {
-                 return b.Pieces[i].Color
-            }
-        }
-        i = i + 1
+//StartBoard.checkSquare(makePos(0, 0)) -> 0
+func (b Board) checkSquare(p Pos) int {
+    piece, exists := b[p]
+    if(exists) {
+        return piece.Color
     }
-    //fmt.Println("checkOpen resolved.")
     return -1
 }
 
+
+//int -> int
 //returns the opposite color
+//otherColor(0) -> 1
 func otherColor(color int) int {
     return ((color - 1) * -1)
 }
 
-//returns the string of a color value
+
+//Piece -> string
+//returns the string color of a given piece
+//makePiece("pawn", 1).colorName() -> "Black"
 func (p Piece) colorName() string {
     if (p.Color == 0) {
         return "White"
@@ -126,88 +143,196 @@ func (p Piece) colorName() string {
     return "Black"
 }
 
-//Checks if the king is on the board
+//Board int -> bool
+//Checks if a particular king is on the board
+//StartBoard.isKingAlive(0) -> true
 func (b Board) isKingAlive(color int) bool {
-    x := 0
-    for (x < len(b.Pieces)) {
-        if ((strings.Compare(b.Pieces[x].Name, "king") == 0) || (strings.Compare(b.Pieces[x].Name, "kingF") == 0)) {
-            if (b.Pieces[x].Color == color) {
+    for k := range b {
+        if ((strings.Compare(b[k].Name, "king") == 0) || (strings.Compare(b[k].Name, "kingF") == 0)) {
+            if (b[k].Color == color) {
                 return true
             }
         }
-        
-        x = x + 1
     }
     return false
 }
 
+
+//Board int -> bool
 //Returns if the given color is in check
-func (b Board) inCheck(color int) bool {
+//StartBoard.isInCheck(1) -> false
+func (b Board) isInCheck(color int) bool {
     var newBoards []Board
-    var y int
     newBoards = b.getAllMoves(otherColor(color))
-    y = 0
-    for (y < len(newBoards)) {
-        if (newBoards[y].isKingAlive(color) == false) {
+    for i := range newBoards {
+        //newBoards[i].printBoard()
+        if (newBoards[i].isKingAlive(color) == false) {
             return true
         }
-        y = y + 1
     }
     return false
 }
 
-//filters self checking moves out of a list of boards
+
+//[]Board int -> []Board
+//filters self checking moves for a given color out of a list of boards
+//*
 func filterSelfChecks(boards []Board, color int) []Board {
-    newBoards := make([]Board, 0)
-    x := 0
-    for (x < len(boards)) {
-        if (boards[x].inCheck(color) == false) {
-            newBoards = append(newBoards, boards[x])
+    for i := range boards {
+        if (boards[i].isInCheck(color) == true) {
+            remove(boards, i)
         }
-        x = x + 1
+    }
+    return boards
+}
+
+
+//Board int -> int
+//Returns the game result of a board on a given color's turn
+//-1 is no result, 2 is draw, 0 and 1 are a victory for the corresponding color
+//StartBoard.gameResult(0) -> -1
+func (b Board) gameResult(color int) int {
+    newBoards := filterSelfChecks(b.getAllMoves(color), color)
+    //newBoards := b.getAllMoves(color)
+
+    if (b.isInCheck(color)) {
+        fmt.Println("In Check.")
+
+        if (len(newBoards) == 0) {
+            fmt.Println("Draw.")
+            return 2
+        }
+        
+        x := 0
+        for (x < len(newBoards)) {
+            if (newBoards[x].isInCheck(color) == false) {
+                return -1
+            }
+            x = x + 1
+        }
+        fmt.Println("Mate.")
+        return otherColor(color)  
+    }
+    return -1
+}
+
+
+//Pos -> bool
+//checks if a given int is a valid grid point for x or y (is between 0 and 7 inclusive)
+//checkLegalPos(makePos(4, 8)) -> false
+func checkLegalPos(pos Pos) bool {
+    if (pos.X > -1 && pos.X < 8 && pos.Y > -1 && pos.Y < 8) {
+        return true
+    }
+    return false
+}
+
+
+//Pos Pos -> Pos
+//adds two Pos like vectors
+//addPos(makePos(2, 4), makePos(3, 0)) -> makePos(5, 4)
+func addPos(p1 Pos, p2 Pos) Pos {
+    return makePos(p1.X + p2.X, p1.Y + p2.Y)
+}
+
+
+//Board []Board Pos Pos Pos -> []Board**
+//Appends all legal moves in the vector direction of the dif Pos until the end of the board to the list of boards
+//*
+func checkInDirection(board Board, newBoards []Board, pos Pos, dif Pos, difBase Pos) []Board {
+    var newPiece Piece
+    newBoard := board
+    p := board[pos]
+
+    
+    for (checkLegalPos(addPos(pos, dif))) {
+
+        if (board.checkSquare(addPos(pos, dif)) == -1) {
+            newPiece = makePiece(p.Name, p.Color)
+            newBoards = append(newBoards, newBoard.makeMove(pos, addPos(pos, dif), newPiece))
+        } else if (board.checkSquare(addPos(pos, dif)) == p.Color) {
+            return newBoards
+        } else if (board.checkSquare(addPos(pos, dif)) == otherColor(p.Color)) {
+            newPiece = makePiece(p.Name, p.Color)
+            newBoards = append(newBoards, newBoard.makeMove(pos, addPos(pos, dif), newPiece))
+            return newBoards
+        }
+    
+        dif = addPos(dif, difBase)
     }
     return newBoards
 }
 
-//Returns the game result of a board on a given color's turn
-func (b Board) gameResult(color int) int {
-    x := 0
-    check := false
-    newBoards := filterSelfChecks(b.getAllMoves(color), color)
 
-    if (b.inCheck(color)) {
-        fmt.Println("In Check.")
-        check = true
-        for (x < len(newBoards)) {
-            if (newBoards[x].inCheck(color) == false) {
-                check = false
-            }
-            x = x + 1
+//Board []Board Piece Pos -> []Board
+//Appends the move in that vector direction to the list of boards if legal
+//*
+func checkInDirectionOnce(board Board, newBoards []Board, pos Pos, dif Pos) []Board {
+    p := board[pos]
+  
+    if (checkLegalPos(addPos(pos, dif))) {
+        if (board.checkSquare(addPos(pos, dif)) == -1) {
+            newPiece := makePiece(p.Name, p.Color)
+            newBoards = append(newBoards, board.makeMove(pos, addPos(pos, dif), newPiece))
+        } else if (board.checkSquare(addPos(pos, dif)) == otherColor(p.Color)) {
+            newPiece := makePiece(p.Name, p.Color)
+            newBoards = append(newBoards, board.makeMove(pos, addPos(pos, dif), newPiece))
         }
-        if (check) {
-            fmt.Println("Mate.")
-            return otherColor(color)
-        }    
     }
+    return newBoards
 
-    if (len(newBoards) == 0) {
-        fmt.Println("Draw.")
-        return 2
-    }
-
-    return -1
 }
 
-//Returns a list of all the legal boards when given piece is moved
-func (p Piece) getMoves(board Board) []Board {
 
-    x := p.PosX
-    y := p.PosY
+//The following functions are shorthands for the two above in specific directions
+//They all share the following signature
+//Board []Board Pos -> []Board
 
+func checkRight(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(1, 0), makePos(1, 0))
+}
+
+func checkRightUp(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(1, 1), makePos(1, 1))
+}
+
+func checkUp(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(0, 1), makePos(0, 1))
+}
+
+func checkLeftUp(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(-1, 1), makePos(-1, 1))
+}
+
+func checkLeft(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(-1, 0), makePos(-1, 0))
+}
+
+func checkLeftDown(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(-1, -1), makePos(-1, -1))
+}
+
+func checkDown(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(0, -1), makePos(0, -1))
+}
+
+func checkRightDown(board Board, newBoard []Board, pos Pos) []Board {
+    return checkInDirection(board, newBoard, pos, makePos(1, -1), makePos(1, -1))
+}
+
+
+
+
+//Board Pos -> []Board
+//Returns a list of all the boards resulting from legal moves for one piece
+//*
+func (b Board) getMoves(pos Pos) []Board {
+    
     newBoards := make([]Board, 0)
-
     var newPiece Piece
+    var newPos Pos
     var tempBoard Board
+    p := b[pos]
 
 
     if (strings.Compare(p.Name, "pawn") == 0) {
@@ -215,739 +340,217 @@ func (p Piece) getMoves(board Board) []Board {
         //*add en passant and promotion
         //Moving Forward
         //(y * -2) + 1 is y + 1 for white, y - 1 for black
-        if (board.checkOpen(x, y + ((p.Color * -2) + 1)) == -1) {
-            newPiece = makePiece("pawn", p.Color, x, y + ((p.Color * -2) + 1))
-            newBoards = append(newBoards, board.makeMove(p, newPiece))
+        if (b.checkSquare(makePos(pos.X, pos.Y + ((p.Color * -2) + 1))) == -1) {
+            newPos = makePos(pos.X, pos.Y + ((p.Color * -2) + 1))
+            newBoards = append(newBoards, b.makeMove(pos, newPos, p))
         }
 
         //Up 2
-        if (p.Color == 0 && p.PosY == 1) {
-            if (board.checkOpen(x, y + 2) == -1) {
-                newPiece = makePiece("pawn", p.Color, x, y + 2)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
+        if (p.Color == 0 && pos.Y == 1) {
+            if (b.checkSquare(makePos(pos.X, pos.Y + 2)) == -1) {
+                newPos = makePos(pos.X, pos.Y + 2)
+                newBoards = append(newBoards, b.makeMove(pos, newPos, p))
             }
         }
 
-        if (p.Color == 1 && p.PosY == 6) {
-            if (board.checkOpen(x, y - 2) == -1) {
-                newPiece = makePiece("pawn", p.Color, x, y - 2)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
+        if (p.Color == 1 && pos.Y == 6) {
+            if (b.checkSquare(makePos(pos.X, pos.Y - 2)) == -1) {
+                newPos = makePos(pos.X, pos.Y - 2)
+                newBoards = append(newBoards, b.makeMove(pos, newPos, p))
             }
         }
 
 
         //Taking a Piece
-        if (board.checkOpen(x + 1, y + ((p.Color * -2) + 1)) == otherColor(p.Color)) {
-            newPiece = makePiece("pawn", p.Color, x + 1, y + ((p.Color * -2) + 1))
-            newBoards = append(newBoards, board.makeMove(p, newPiece))
+        if (b.checkSquare(makePos(pos.X + 1, pos.Y + ((p.Color * -2) + 1))) == otherColor(p.Color)) {
+            newPos = makePos(pos.X + 1, pos.Y + ((p.Color * -2) + 1))
+            newBoards = append(newBoards, b.makeMove(pos, newPos, p))
         }
-        if (board.checkOpen(x - 1, y +  ((p.Color * -2) + 1)) == otherColor(p.Color)) {
-            newPiece = makePiece("pawn", p.Color, x - 1, y + ((p.Color * -2) + 1))
-            newBoards = append(newBoards, board.makeMove(p, newPiece))
+        if (b.checkSquare(makePos(pos.X - 1, pos.Y +  ((p.Color * -2) + 1))) == otherColor(p.Color)) {
+            newPos = makePos(pos.X - 1, pos.Y + ((p.Color * -2) + 1))
+            newBoards = append(newBoards, b.makeMove(pos, newPos, p))
         }
     }
 
-    if (strings.Compare(p.Name, "rook") == 0) {
-        
-        //fmt.Println("Checking for rook.")
 
-        x := p.PosX
-        y := p.PosY
+    if (strings.Compare(p.Name, "rook") == 0) {
 
         //To the right
-        for (x < 7) {
-            if (board.checkOpen(x + 1, y) == -1) {
-                newPiece = makePiece("rook", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x + 1, y) == p.Color) {
-                x = 8
-            }
-
-            if (board.checkOpen(x + 1, y) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 8
-            }
-            x = x + 1
-        }
+        newBoards = checkRight(b, newBoards, pos)
 
         //To the left
-        x = p.PosX
-        for (x > 0) {
-            if (board.checkOpen(x - 1, y) == -1) {
-                newPiece = makePiece("rook", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x - 1, y) == p.Color) {
-                x = 0
-            }
-
-            if (board.checkOpen(x - 1, y) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 0
-            }
-            x = x - 1
-        }
+        newBoards = checkLeft(b, newBoards, pos)
 
         //Up
-        x = p.PosX
-        for (y < 7) {
-            if (board.checkOpen(x, y + 1) == -1) {
-                newPiece = makePiece("rook", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x, y + 1) == p.Color) {
-                y = 8
-            }
-
-            if (board.checkOpen(x, y + 1) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                y = 8
-            }
-            y = y + 1
-        }
+        newBoards = checkUp(b, newBoards, pos)
 
         //Down
-        y = p.PosY
-        for (y > 0) {
-            if (board.checkOpen(x, y - 1) == -1) {
-                newPiece = makePiece("rook", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x, y - 1) == p.Color) {
-                y = 0
-            }
-
-            if (board.checkOpen(x, y - 1) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                y = 0
-            }
-            y = y - 1
-        }
+        newBoards = checkDown(b, newBoards, pos)
     }
 
     if (strings.Compare(p.Name, "rookF") == 0) {
 
-        x := p.PosX
-        y := p.PosY
-
         //To the right
-        for (x < 7) {
-            if (board.checkOpen(x + 1, y) == -1) {
-                newPiece = makePiece("rook", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x + 1, y) == p.Color) {
-                x = 8
-            }
-
-            if (board.checkOpen(x + 1, y) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 8
-            }
-            x = x + 1
-        }
+        newBoards = checkRight(b, newBoards, pos)
 
         //To the left
-        x = p.PosX
-        for (x > 0) {
-            if (board.checkOpen(x - 1, y) == -1) {
-                newPiece = makePiece("rook", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x - 1, y) == p.Color) {
-                x = 0
-            }
-
-            if (board.checkOpen(x - 1, y) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 0
-            }
-            x = x - 1
-        }
+        newBoards = checkLeft(b, newBoards, pos)
 
         //Up
-        x = p.PosX
-        for (y < 7) {
-            if (board.checkOpen(x, y + 1) == -1) {
-                newPiece = makePiece("rook", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x, y + 1) == p.Color) {
-                y = 8
-            }
-
-            if (board.checkOpen(x, y + 1) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                y = 8
-            }
-            y = y + 1
-        }
+        newBoards = checkUp(b, newBoards, pos)
 
         //Down
-        y = p.PosY
-        for (y > 0) {
-            if (board.checkOpen(x, y - 1) == -1) {
-                newPiece = makePiece("rook", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x, y - 1) == p.Color) {
-                y = 0
-            }
-
-            if (board.checkOpen(x, y - 1) == otherColor(p.Color)) {
-                newPiece = makePiece("rook", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                y = 0
-            }
-            y = y - 1
-        }
+        newBoards = checkDown(b, newBoards, pos)
     }
 
+    //could write a function for this one
     if (strings.Compare(p.Name, "knight") == 0) {
 
-        x := p.PosX
-        y := p.PosY
-
         //Up Right
-        if (y < 6) {
-            if (x < 7) {
-                if (board.checkOpen(x + 1, y + 2) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x + 1, y + 2)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(1, 2))
 
         //Right Up
-        if (x < 6) {
-            if (y < 7) {
-                if (board.checkOpen(x + 2, y + 1) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x + 2, y + 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(2, 1))
 
         //Right Down
-        if (x < 6) {
-            if (y > 0) {
-                if (board.checkOpen(x + 2, y - 1) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x + 2, y - 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(2, -1))
 
         //Down Right
-        if (y > 1) {
-            if (x < 7) {
-                if (board.checkOpen(x + 1, y - 2) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x + 1, y - 2)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(1, -2))
 
         //Down Left
-        if (y > 1) {
-            if (x > 0) {
-                if (board.checkOpen(x - 1, y - 2) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x - 1, y - 2)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, -2))
 
         //Left Down
-        if (x > 1) {
-            if (y > 0) {
-                if (board.checkOpen(x - 2, y - 1) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x - 2, y - 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-2, -1))
 
         //Left Up
-        if (x > 1) {
-            if (y < 7) {
-                if (board.checkOpen(x - 2, y + 1) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x - 2, y + 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-2, 1))
 
         //Up Left
-        if (y < 6) {
-            if (x > 0) {
-                if (board.checkOpen(x - 1, y + 2) != p.Color) {
-                    newPiece = makePiece("knight", p.Color, x - 1, y + 2)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }      
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, 2))     
     }
 
     if (strings.Compare(p.Name, "bishop") == 0) {
         
-        x := p.PosX
-        y := p.PosY
-
         //Up Right
-        for ((x < 7) && (y < 7)) {
-            if (board.checkOpen(x + 1, y + 1) == -1) {
-                newPiece = makePiece("bishop", p.Color, x + 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x + 1, y + 1) == p.Color) {
-                x = 8
-            }
-
-            if (board.checkOpen(x + 1, y + 1) == otherColor(p.Color)) {
-                newPiece = makePiece("bishop", p.Color, x + 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 8
-            }
-            x = x + 1
-            y = y + 1
-        }
+        newBoards = checkRightUp(b, newBoards, pos)
 
         //Down Right
-        x = p.PosX
-        y = p.PosY
-        for ((x < 7) && (y > 0)) {
-            if (board.checkOpen(x + 1, y - 1) == -1) {
-                newPiece = makePiece("bishop", p.Color, x + 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x + 1, y - 1) == p.Color) {
-                x = 8
-            }
-
-            if (board.checkOpen(x + 1, y - 1) == otherColor(p.Color)) {
-                newPiece = makePiece("bishop", p.Color, x + 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 8
-            }
-            x = x + 1
-            y = y - 1
-        }
+        newBoards = checkRightDown(b, newBoards, pos)
 
         //Down Left
-        x = p.PosX
-        y = p.PosY
-        for ((x > 0) && (y > 0)) {
-            if (board.checkOpen(x - 1, y - 1) == -1) {
-                newPiece = makePiece("bishop", p.Color, x - 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x - 1, y - 1) == p.Color) {
-                x = 0
-            }
-
-            if (board.checkOpen(x - 1, y - 1) == otherColor(p.Color)) {
-                newPiece = makePiece("bishop", p.Color, x - 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 0
-            }
-            x = x - 1
-            y = y - 1
-        }
+        newBoards = checkLeftDown(b, newBoards, pos)
 
         //Up Left
-        x = p.PosX
-        y = p.PosY
-        for ((x > 0) && (y < 7)) {
-            if (board.checkOpen(x - 1, y + 1) == -1) {
-                newPiece = makePiece("bishop", p.Color, x - 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x - 1, y + 1) == p.Color) {
-                x = 0
-            }
-
-            if (board.checkOpen(x - 1, y + 1) == otherColor(p.Color)) {
-                newPiece = makePiece("bishop", p.Color, x - 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 0
-            }
-            x = x - 1
-            y = y + 1
-        }
+        newBoards = checkLeftUp(b, newBoards, pos)
     }
 
     if (strings.Compare(p.Name, "queen") == 0) {
-        
-        x := p.PosX
-        y := p.PosY
 
         //To the right
-        for (x < 7) {
-            if (board.checkOpen(x + 1, y) == -1) {
-                newPiece = makePiece("queen", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x + 1, y) == p.Color) {
-                x = 8
-            }
-
-            if (board.checkOpen(x + 1, y) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 8
-            }
-            x = x + 1
-        }
+        newBoards = checkRight(b, newBoards, pos)
 
         //To the left
-        x = p.PosX
-        for (x > 0) {
-            if (board.checkOpen(x - 1, y) == -1) {
-                newPiece = makePiece("queen", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x - 1, y) == p.Color) {
-                x = 0
-            }
-
-            if (board.checkOpen(x - 1, y) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 0
-            }
-            x = x - 1
-        }
+        newBoards = checkLeft(b, newBoards, pos)
 
         //Up
-        x = p.PosX
-        for (y < 7) {
-            if (board.checkOpen(x, y + 1) == -1) {
-                newPiece = makePiece("queen", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x, y + 1) == p.Color) {
-                y = 8
-            }
-
-            if (board.checkOpen(x, y + 1) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                y = 8
-            }
-            y = y + 1
-        }
+        newBoards = checkUp(b, newBoards, pos)
 
         //Down
-        y = p.PosY
-        for (y > 0) {
-            if (board.checkOpen(x, y - 1) == -1) {
-                newPiece = makePiece("queen", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x, y - 1) == p.Color) {
-                y = 0
-            }
-
-            if (board.checkOpen(x, y - 1) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                y = 0
-            }
-            y = y - 1
-        }
+        newBoards = checkDown(b, newBoards, pos)
 
 
         //Up Right
-        x = p.PosX
-        y = p.PosY    
-        for ((x < 7) && (y < 7)) {
-            if (board.checkOpen(x + 1, y + 1) == -1) {
-                newPiece = makePiece("queen", p.Color, x + 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x + 1, y + 1) == p.Color) {
-                x = 8
-            }
-
-            if (board.checkOpen(x + 1, y + 1) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x + 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 8
-            }
-            x = x + 1
-            y = y + 1
-        }
+        newBoards = checkRightUp(b, newBoards, pos)
 
         //Down Right
-        x = p.PosX
-        y = p.PosY
-        for ((x < 7) && (y > 0)) {
-            if (board.checkOpen(x + 1, y - 1) == -1) {
-                newPiece = makePiece("queen", p.Color, x + 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x + 1, y - 1) == p.Color) {
-                x = 8
-            }
-
-            if (board.checkOpen(x + 1, y - 1) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x + 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 8
-            }
-            x = x + 1
-            y = y - 1
-        }
+        newBoards = checkRightDown(b, newBoards, pos)
 
         //Down Left
-        x = p.PosX
-        y = p.PosY
-        for ((x > 0) && (y > 0)) {
-            if (board.checkOpen(x - 1, y - 1) == -1) {
-                newPiece = makePiece("queen", p.Color, x - 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x - 1, y - 1) == p.Color) {
-                x = 0
-            }
-
-            if (board.checkOpen(x - 1, y - 1) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x - 1, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 0
-            }
-            x = x - 1
-            y = y - 1
-        }
+        newBoards = checkLeftDown(b, newBoards, pos)
 
         //Up Left
-        x = p.PosX
-        y = p.PosY
-        for ((x > 0) && (y < 7)) {
-            if (board.checkOpen(x - 1, y + 1) == -1) {
-                newPiece = makePiece("queen", p.Color, x - 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-
-            if (board.checkOpen(x - 1, y + 1) == p.Color) {
-                x = 0
-            }
-
-            if (board.checkOpen(x - 1, y + 1) == otherColor(p.Color)) {
-                newPiece = makePiece("queen", p.Color, x - 1, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-                x = 0
-            }
-            x = x - 1
-            y = y + 1
-        }
+        newBoards = checkLeftUp(b, newBoards, pos)
     }
 
     if (strings.Compare(p.Name, "king") == 0) {
-        
-        x := p.PosX
-        y := p.PosY
 
         //Up
-        if (y < 7) {
-            if (board.checkOpen(x, y + 1) != p.Color) {
-                newPiece = makePiece("king", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(0, 1))
 
         //Up Right
-        if (x < 7) {
-            if (y < 7) {
-                if (board.checkOpen(x + 1, y + 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x + 1, y + 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(1, 1))
 
         //Right
-        if (x < 7) {
-            if (board.checkOpen(x + 1, y) != p.Color) {
-                newPiece = makePiece("king", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(1, 0))
 
         //Down Right
-        if (y > 0) {
-            if (x < 7) {
-                if (board.checkOpen(x + 1, y - 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x + 1, y - 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(1, -1))
 
         //Down
-        if (y > 0) {
-            if (board.checkOpen(x, y - 1) != p.Color) {
-                newPiece = makePiece("king", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(0, -1))
 
         //Down Left
-        if (x > 0) {
-            if (y > 0) {
-                if (board.checkOpen(x - 1, y - 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x - 1, y - 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, -1))
 
         //Left
-        if (x > 0) {
-            if (board.checkOpen(x - 1, y) != p.Color) {
-                newPiece = makePiece("king", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, 0))
 
         //Up Left
-        if (y < 7) {
-            if (x > 0) {
-                if (board.checkOpen(x - 1, y + 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x - 1, y + 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, 1))
     }
 
     if (strings.Compare(p.Name, "kingF") == 0) {
         
-        x := p.PosX
-        y := p.PosY
-
         //Up
-        if (y < 7) {
-            if (board.checkOpen(x, y + 1) != p.Color) {
-                newPiece = makePiece("king", p.Color, x, y + 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(0, 1))
 
         //Up Right
-        if (x < 7) {
-            if (y < 7) {
-                if (board.checkOpen(x + 1, y + 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x + 1, y + 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(1, 1))
 
         //Right
-        if (x < 7) {
-            if (board.checkOpen(x + 1, y) != p.Color) {
-                newPiece = makePiece("king", p.Color, x + 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(1, 0))
 
         //Down Right
-        if (y > 0) {
-            if (x < 7) {
-                if (board.checkOpen(x + 1, y - 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x + 1, y - 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, 1))
 
         //Down
-        if (y > 0) {
-            if (board.checkOpen(x, y - 1) != p.Color) {
-                newPiece = makePiece("king", p.Color, x, y - 1)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(0, -1))
 
         //Down Left
-        if (x > 0) {
-            if (y > 0) {
-                if (board.checkOpen(x - 1, y - 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x - 1, y - 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, -1))
 
         //Left
-        if (x > 0) {
-            if (board.checkOpen(x - 1, y) != p.Color) {
-                newPiece = makePiece("king", p.Color, x - 1, y)
-                newBoards = append(newBoards, board.makeMove(p, newPiece))
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, 0))
 
         //Up Left
-        if (y < 7) {
-            if (x > 0) {
-                if (board.checkOpen(x - 1, y + 1) != p.Color) {
-                    newPiece = makePiece("king", p.Color, x - 1, y + 1)
-                    newBoards = append(newBoards, board.makeMove(p, newPiece))
-                }
-            }
-        }
+        newBoards = checkInDirectionOnce(b, newBoards, pos, makePos(-1, 1))
 
         //Kingside Castle
-        if (board.checkOpen(x + 1, y) == -1) {
-            if (board.checkOpen(x + 2, y) == -1) {
-                if (strings.Compare(board.getPieceAtCoords(x + 3, y).Name, "rookF") == 0) {
-                    newPiece = makePiece("king", p.Color, x + 2, y)
-                    tempBoard = board.makeMove(p, newPiece)
-                    newPiece = makePiece("rook", p.Color, x + 1, y)
-                    newBoards = append(newBoards, tempBoard.makeMove(board.getPieceAtCoords(x + 3, y), newPiece))
+        if (b.checkSquare(makePos(pos.X + 1, pos.Y)) == -1) {
+            if (b.checkSquare(makePos(pos.X + 2, pos.Y)) == -1) {
+                if (strings.Compare(b[makePos(pos.X + 3, pos.Y)].Name, "rookF") == 0) {
+                    newPiece = makePiece("king", p.Color)
+                    newPos = makePos(pos.X + 2, pos.Y)
+                    tempBoard = b.makeMove(pos, newPos, newPiece)
+                    newPiece = makePiece("rook", p.Color)
+                    newPos = makePos(pos.X + 1, pos.Y)
+                    newBoards = append(newBoards, tempBoard.makeMove(makePos(pos.X + 3, pos.Y), newPos, newPiece))
                 }
             }
         }
 
         //Queenside Castle
-        if (board.checkOpen(x - 1, y) == -1) {
-            if (board.checkOpen(x - 2, y) == -1) {
-                if (board.checkOpen(x - 3, y) == -1) {
-                    if (strings.Compare(board.getPieceAtCoords(x - 4, y).Name, "rookF") == 0) {
-                        newPiece = makePiece("king", p.Color, x - 2, y)
-                        tempBoard = board.makeMove(p, newPiece)
-                        newPiece = makePiece("rook", p.Color, x - 1, y)
-                        newBoards = append(newBoards, tempBoard.makeMove(board.getPieceAtCoords(x - 4, y), newPiece))
-                    }
+        if (b.checkSquare(makePos(pos.X - 1, pos.Y)) == -1) {
+            if (b.checkSquare(makePos(pos.X - 2, pos.Y)) == -1) {
+                if (strings.Compare(b[makePos(pos.X - 3, pos.Y)].Name, "rookF") == 0) {
+                    newPiece = makePiece("king", p.Color)
+                    newPos = makePos(pos.X - 3, pos.Y)
+                    tempBoard = b.makeMove(pos, newPos, newPiece)
+                    newPiece = makePiece("rook", p.Color)
+                    newPos = makePos(pos.X - 1, pos.Y)
+                    newBoards = append(newBoards, tempBoard.makeMove(makePos(pos.X - 1, pos.Y), newPos, newPiece))
                 }
             }
         }
@@ -956,51 +559,46 @@ func (p Piece) getMoves(board Board) []Board {
 	return newBoards
 }
 
-//gets all the moves for one color on a given board
+
+//Board int -> []Board
+//Returns a list of all the boards resulting from legal moves for one color
+//*
 func (b Board) getAllMoves(color int) []Board {
-    x := 0
     var i int
     newBoards := make([]Board, 0)
     var pieceBoards []Board
-    for (x < len(b.Pieces)) {
-        if (b.Pieces[x].Color == color) {
+    for k := range b {
+        if (b[k].Color == color) {
             i = 0
-            pieceBoards = b.Pieces[x].getMoves(b)
+            pieceBoards = b.getMoves(k)
             for (i < len(pieceBoards)) {
                 newBoards = append(newBoards, pieceBoards[i])
                 i = i + 1
-            }
+            }        
         }
-        x = x + 1
     }
     return newBoards
 }
 
+
+//Board Board -> bool
 //Checks the equality of two boards 
+//compareBoards(startBoard, startBoard.copy()) -> true
 func compareBoards(b1 Board, b2 Board) bool {
-    samePieces := 0
-    if (len(b1.Pieces) == len(b2.Pieces)) {
-        fmt.Println("same lens")
-        x := 0
-        y := 0
-        for (x < len(b1.Pieces)) {
-            y = 0
-            for (y < len(b2.Pieces)) {
-                if (b1.Pieces[x] == b2.Pieces[y]) {
-                    samePieces = samePieces + 1
-                    y = len(b1.Pieces)
-                }
-                y = y + 1
-            }
-            x = x + 1
+    for k := range b1 {
+        if (b1[k] != b2[k]) {
+            return false
         }
     }
-    return (samePieces == len(b1.Pieces))
+    return true
 }
 
+
+//Board Board Piece -> bool
 //Checks the legality of a new board, given the old board and the piece moved
-func (b Board) checkLegal(init Board, moved Piece) bool {
-    newBoards := moved.getMoves(init)
+//startBoard.checkLegal(startBoard, makePos(1, 4)) -> false
+func (b Board) checkLegal(init Board, pos Pos) bool {
+    newBoards := init.getMoves(pos)
     x := 0
     for (x < len(newBoards)) {
         if (compareBoards(b, newBoards[x])) {
@@ -1012,210 +610,217 @@ func (b Board) checkLegal(init Board, moved Piece) bool {
 }
 
 
-
-
+//The following functions all fill boards with certain piece configurations
+//They all share the following signiture
+//Board -> Board
 
 //Sets up the initial board
 func (b Board) fillBoard() Board {
 
-	fmt.Println("Filling Board")
+	fmt.Println("Filling Board for start position")
 
     //White Pieces
-	b.Pieces = append(b.Pieces, makePiece("rookF", 0, 0, 0))
-    b.Pieces = append(b.Pieces, makePiece("knight", 0, 1, 0))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 0, 2, 0))
-    b.Pieces = append(b.Pieces, makePiece("queen", 0, 3, 0))
-    b.Pieces = append(b.Pieces, makePiece("kingF", 0, 4, 0))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 0, 5, 0))
-    b.Pieces = append(b.Pieces, makePiece("knight", 0, 6, 0))
-	b.Pieces = append(b.Pieces, makePiece("rookF", 0, 7, 0))
-    x := 0
-    for (x < 8) {
-        b.Pieces = append(b.Pieces, makePiece("pawn", 0, x, 1))
-        x = x + 1
+	b[makePos(0, 0)] = makePiece("rookF", 0)
+    b[makePos(1, 0)] = makePiece("knight", 0)
+    b[makePos(2, 0)] = makePiece("bishop", 0)
+    b[makePos(3, 0)] = makePiece("queen", 0)
+    b[makePos(4, 0)] = makePiece("king", 0)
+    b[makePos(5, 0)] = makePiece("bishop", 0)
+    b[makePos(6, 0)] = makePiece("knight", 0)
+    b[makePos(7, 0)] = makePiece("rookF", 0)
+    i := 0
+    for (i < 8) {
+        b[makePos(i, 1)] = makePiece("pawn", 0)
+        i = i + 1
     }
 
     //Black Pieces
-    b.Pieces = append(b.Pieces, makePiece("rookF", 1, 0, 7))
-    b.Pieces = append(b.Pieces, makePiece("knight", 1, 1, 7))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 1, 2, 7))
-    b.Pieces = append(b.Pieces, makePiece("queen", 1, 3, 7))
-    b.Pieces = append(b.Pieces, makePiece("kingF", 1, 4, 7))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 1, 5, 7))
-    b.Pieces = append(b.Pieces, makePiece("knight", 1, 6, 7))
-    b.Pieces = append(b.Pieces, makePiece("rookF", 1, 7, 7))
-    x = 0
-    for (x < 8) {
-        b.Pieces = append(b.Pieces, makePiece("pawn", 1, x, 6))
-        x = x + 1
-	}
+    b[makePos(0, 7)] = makePiece("rookF", 1)
+    b[makePos(1, 7)] = makePiece("knight", 1)
+    b[makePos(2, 7)] = makePiece("bishop", 1)
+    b[makePos(3, 7)] = makePiece("queen", 1)
+    b[makePos(4, 7)] = makePiece("king", 1)
+    b[makePos(5, 7)] = makePiece("bishop", 1)
+    b[makePos(6, 7)] = makePiece("knight", 1)
+    b[makePos(7, 7)] = makePiece("rookF", 1)
+    i = 0
+    for (i < 8) {
+        b[makePos(i, 6)] = makePiece("pawn", 1)
+        i = i + 1
+    }
 	return b
 }
 
-//Sets up the initial board for Castling Test
+//Sets up theboard for Castling Test
 func (b Board) fillBoardCastleTest() Board {
 
-	fmt.Println("Filling Board")
+	fmt.Println("Filling Board for Castle Test")
 
     //White Pieces
-	b.Pieces = append(b.Pieces, makePiece("rookF", 0, 0, 0))
-    b.Pieces = append(b.Pieces, makePiece("knight", 0, 1, 0))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 0, 2, 0))
-    b.Pieces = append(b.Pieces, makePiece("queen", 0, 3, 0))
-    b.Pieces = append(b.Pieces, makePiece("kingF", 0, 4, 0))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 0, 5, 0))
-    b.Pieces = append(b.Pieces, makePiece("knight", 0, 6, 0))
-	b.Pieces = append(b.Pieces, makePiece("rookF", 0, 7, 0))
+	b[makePos(0, 0)] = makePiece("rookF", 0)
+    b[makePos(0, 1)] = makePiece("knight", 0)
+    b[makePos(0, 2)] = makePiece("bishop", 0)
+    b[makePos(0, 3)] = makePiece("queen", 0)
+    b[makePos(0, 4)] = makePiece("king", 0)
+    b[makePos(0, 5)] = makePiece("bishop", 0)
+    b[makePos(0, 6)] = makePiece("knight", 0)
+    b[makePos(0, 7)] = makePiece("rookF", 0)
     x := 0
     for (x < 8) {
-        b.Pieces = append(b.Pieces, makePiece("pawn", 0, x, 1))
-        x = x + 1
+        b[makePos(x, 1)] = makePiece("pawn", 0)
     }
 
     //Black Pieces
-    b.Pieces = append(b.Pieces, makePiece("rookF", 1, 0, 7))
-    b.Pieces = append(b.Pieces, makePiece("kingF", 1, 4, 7))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 1, 5, 7))
-    b.Pieces = append(b.Pieces, makePiece("knight", 1, 6, 7))
-    b.Pieces = append(b.Pieces, makePiece("rookF", 1, 7, 7))
+    b[makePos(7, 0)] = makePiece("rookF", 1)
+    b[makePos(7, 3)] = makePiece("queen", 1)
+    b[makePos(7, 4)] = makePiece("king", 1)
+    b[makePos(7, 7)] = makePiece("rookF", 1)
     x = 0
     for (x < 8) {
-        b.Pieces = append(b.Pieces, makePiece("pawn", 1, x, 6))
-        x = x + 1
-	}
+        b[makePos(x, 6)] = makePiece("pawn", 1)
+    }
 	return b
 }
 
-//Sets up the initial board for Mate Test
+//Sets up the board for Mate Test
 func (b Board) fillBoardMate() Board {
 
-	fmt.Println("Filling Board for Mate")
+	fmt.Println("Filling Board for Mate Test")
 
     //White Pieces
-    b.Pieces = append(b.Pieces, makePiece("rook", 0, 1, 7))
-    b.Pieces = append(b.Pieces, makePiece("rook", 0, 1, 6))
-    b.Pieces = append(b.Pieces, makePiece("king", 0, 7, 7))
+    b[makePos(1, 7)] = makePiece("rook", 0)
+    b[makePos(1, 6)] = makePiece("rook", 0)
+    b[makePos(7, 7)] = makePiece("king", 0)
 
     //Black Pieces
-    b.Pieces = append(b.Pieces, makePiece("king", 1, 0, 0))
+    b[makePos(0, 0)] = makePiece("king", 1)
 
 	return b
 }
 
+//Sets up the  board for S Test
+func (b Board) fillBoardSTest() Board {
+
+	fmt.Println("Filling Board for S")
+
+    //White Pieces
+    b[makePos(1, 6)] = makePiece("rook", 0)
+    b[makePos(7, 7)] = makePiece("king", 0)
+
+    //Black Pieces
+    b[makePos(0, 0)] = makePiece("king", 1)
+
+	return b
+}
+
+//Sets up the initial board for Knight Fork Test
 func (b Board) fillBoardKnightFork() Board {
 
 	fmt.Println("Filling Board for Knight Fork Test")
 
     //White Pieces
-    b.Pieces = append(b.Pieces, makePiece("knight", 0, 3, 3))
-    b.Pieces = append(b.Pieces, makePiece("king", 0, 0, 0))
-    b.Pieces = append(b.Pieces, makePiece("pawn", 0, 0, 1))
-    b.Pieces = append(b.Pieces, makePiece("pawn", 0, 1, 0))
-
-
+    b[makePos(3, 3)] = makePiece("knight", 0)
+    b[makePos(0, 0)] = makePiece("king", 0)
+    b[makePos(0, 1)] = makePiece("pawn", 0)
+    b[makePos(1, 0)] = makePiece("pawn", 0)
 
     //Black Pieces
-    b.Pieces = append(b.Pieces, makePiece("king", 1, 0, 7))
-    b.Pieces = append(b.Pieces, makePiece("rook", 1, 6, 2))
-    b.Pieces = append(b.Pieces, makePiece("rook", 1, 6, 6))
+    b[makePos(0, 7)] = makePiece("king", 1)
+    b[makePos(6, 2)] = makePiece("rook", 1)
+    b[makePos(6, 6)] = makePiece("rook", 1)
 
 	return b
 }
 
+//Sets up the board for Skewer Test
 func (b Board) fillBoardSkewer() Board {
 
 	fmt.Println("Filling Board for Skewer Test")
 
     //White Pieces
-    b.Pieces = append(b.Pieces, makePiece("bishop", 0, 2, 1))
-    b.Pieces = append(b.Pieces, makePiece("king", 0, 7, 0))
-    b.Pieces = append(b.Pieces, makePiece("pawn", 0, 7, 1))
-    b.Pieces = append(b.Pieces, makePiece("pawn", 0, 6, 0))
+    b[makePos(2, 1)] = makePiece("bishop", 0)
+    b[makePos(7, 0)] = makePiece("king", 0)
+    b[makePos(7, 1)] = makePiece("pawn", 0)
+    b[makePos(6, 0)] = makePiece("pawn", 0)
 
 
 
     //Black Pieces
-    b.Pieces = append(b.Pieces, makePiece("rook", 1, 0, 7))
-    b.Pieces = append(b.Pieces, makePiece("king", 1, 2, 5))
+    b[makePos(0, 7)] = makePiece("rook", 1)
+    b[makePos(2, 5)] = makePiece("king", 1)
 
 	return b
 }
 
+//Sets up the board for Trap Test
 func (b Board) fillBoardTrap() Board {
 
 	fmt.Println("Filling Board for Skewer Test")
 
     //White Pieces
-    b.Pieces = append(b.Pieces, makePiece("bishop", 0, 2, 1))
-    b.Pieces = append(b.Pieces, makePiece("king", 0, 7, 0))
-
-
-
+    b[makePos(2, 2)] = makePiece("bishop", 0)
+    b[makePos(7, 0)] = makePiece("king", 0)
 
     //Black Pieces
-    b.Pieces = append(b.Pieces, makePiece("rook", 1, 0, 7))
-    b.Pieces = append(b.Pieces, makePiece("king", 1, 0, 6))
-    b.Pieces = append(b.Pieces, makePiece("bishop", 1, 1, 7))
+    b[makePos(0, 7)] = makePiece("rook", 1)
+    b[makePos(0, 6)] = makePiece("king", 1)
+    b[makePos(1, 7)] = makePiece("rook", 1)
 
 	return b
 }
 
+//Sets up the initial board for Simple Test
 func (b Board) fillBoardSimp() Board {
 
-	fmt.Println("Filling Board for Skewer Test")
+	fmt.Println("Filling Board for Simple Test")
 
     //White Pieces
-    b.Pieces = append(b.Pieces, makePiece("bishop", 0, 1, 0))
-    b.Pieces = append(b.Pieces, makePiece("king", 0, 7, 0))
-
-
+    b[makePos(1, 0)] = makePiece("rook", 0)
+    b[makePos(7, 0)] = makePiece("king", 0)
 
     //Black Pieces
-    b.Pieces = append(b.Pieces, makePiece("king", 1, 2, 5))
-    b.Pieces = append(b.Pieces, makePiece("rook", 1, 6, 5))
+    b[makePos(6, 5)] = makePiece("rook", 1)
+    b[makePos(3, 5)] = makePiece("king", 1)
 
 	return b
 }
 
+
+
+
+//Board ->
 //Prints out the coordinates of the board
+//*
 func (b Board) printBoard() {
-	x := 0
-	fmt.Println(string(len(b.Pieces)))
-    for (x < len(b.Pieces)) {
-        fmt.Println(b.Pieces[x].colorName() + " " + b.Pieces[x].Name + " on (" + strconv.Itoa(b.Pieces[x].PosX) + ", " + strconv.Itoa(b.Pieces[x].PosY) + ")")
-        x = x + 1
+	fmt.Println(string(len(b)))
+    for k := range b {
+        fmt.Println(b[k].colorName() + " " + b[k].Name + " on (" + strconv.Itoa(k.X) + ", " + strconv.Itoa(k.Y) + ")")
     }
 }
 
 
-
-
-
-
-//Allows a user to input a piece
-func inputPiece() Piece {
+// -> Pos
+//Returns a pos based on user inputs
+//inputPos() (input 3, 4) -> makePos(3, 4)
+func inputPos() Pos {
     reader := bufio.NewReader(os.Stdin)
-    fmt.Print("Name of Piece: ")
-    name, _ := reader.ReadString('\n')
-    name = strings.TrimRight(name, "\n")
 
-    fmt.Print("Color of Piece: ")
-    colorStr, _ := reader.ReadString('\n')
-    color, _ := strconv.Atoi(strings.TrimRight(colorStr, "\n"))
-
-    fmt.Print("X Position of Piece: ")
+    fmt.Print("X Position: ")
     xStr, _ := reader.ReadString('\n')
     x, _ := strconv.Atoi(strings.TrimRight(xStr, "\n"))
 
-    fmt.Print("Y Position of Piece: ")
+    fmt.Print("Y Position: ")
     yStr, _ := reader.ReadString('\n')
     y, _ := strconv.Atoi(strings.TrimRight(yStr, "\n"))
 
-    return (makePiece(name, color, x, y))
+    return (makePos(x, y))
 }
 
-//Allows a user to input a piece
-func (b Board) inputPiecePosRev(color int) Piece {
+
+//Board int -> Pos
+//Finds the Pos specified by user input coordinates, reverses coords for black pieces
+//startBoard.inputPosRev(1) input(2, 4) -> makePos(5, 3)
+func (b Board) inputPosRev(color int) Pos {
     reader := bufio.NewReader(os.Stdin)
 
     fmt.Print("X Position of Piece: ")
@@ -1233,142 +838,55 @@ func (b Board) inputPiecePosRev(color int) Piece {
         x = 7 - x
         y = 7 - y
     }
-
-    i := 0
-    name := "pawn"
-    for (i < len(b.Pieces)) {
-        if (x == b.Pieces[i].PosX) {
-            if (y == b.Pieces[i].PosY) {
-                name = b.Pieces[i].Name
-            }
-        }
-        i = i + 1
-    }
-
-    return (makePiece(name, color, x, y))
-}
-
-//Allows a user to input a piece
-func (b Board) inputPiecePos(color int) Piece {
-    reader := bufio.NewReader(os.Stdin)
-
-    fmt.Print("X Position of Piece: ")
-    xStr, _ := reader.ReadString('\n')
-    x, _ := strconv.Atoi(strings.TrimRight(xStr, "\n"))
-
-    fmt.Print("Y Position of Piece: ")
-    yStr, _ := reader.ReadString('\n')
-    y, _ := strconv.Atoi(strings.TrimRight(yStr, "\n"))
-
-    x = x - 1
-    y = y - 1
-
-    i := 0
-    name := "pawn"
-    for (i < len(b.Pieces)) {
-        if (x == b.Pieces[i].PosX) {
-            if (y == b.Pieces[i].PosY) {
-                name = b.Pieces[i].Name
-            }
-        }
-        i = i + 1
-    }
-
-    return (makePiece(name, color, x, y))
+    return (makePos(x, y))
 }
 
 
-func (b Board) inputPiecePosNew(color int, name string) Piece {
-    reader := bufio.NewReader(os.Stdin)
-
-    fmt.Print("X Position of Piece: ")
-    xStr, _ := reader.ReadString('\n')
-    x, _ := strconv.Atoi(strings.TrimRight(xStr, "\n"))
-
-    fmt.Print("Y Position of Piece: ")
-    yStr, _ := reader.ReadString('\n')
-    y, _ := strconv.Atoi(strings.TrimRight(yStr, "\n"))
-
-    x = x - 1
-    y = y - 1
-
-    return (makePiece(name, color, x, y))
-}
-
-func (b Board) inputPiecePosNewRev(color int, name string) Piece {
-    reader := bufio.NewReader(os.Stdin)
-
-    fmt.Print("X Position of Piece: ")
-    xStr, _ := reader.ReadString('\n')
-    x, _ := strconv.Atoi(strings.TrimRight(xStr, "\n"))
-
-    fmt.Print("Y Position of Piece: ")
-    yStr, _ := reader.ReadString('\n')
-    y, _ := strconv.Atoi(strings.TrimRight(yStr, "\n"))
-
-    x = x - 1
-    y = y - 1
-
-    if (color == 1) {
-        x = 7 - x
-        y = 7 - y
-    }
-
-    return (makePiece(name, color, x, y))
-}
-
+//Board -> Board
 //Allows a user to make a move with inputs
+//*
 func (b Board) manualMove(color int) Board {
 
-    var x int
-    var endBoard Board
-    var oldPiece Piece
+    var oldPos Pos
     check := false
     for (check == false) {
-        fmt.Println("Input Piece to move")
-        oldPiece = b.inputPiecePosRev(color)
+        fmt.Println("Input Pos of Piece to move")
+        oldPos = b.inputPosRev(color)
 
-        x = 0
-        for (x < len(b.Pieces)) {
-            if (oldPiece == b.Pieces[x]) {
-                check = true
-                fmt.Println(b.Pieces[x].Name + " Selected.")
-            }
-            x = x + 1
+        _, exists := b[oldPos]
+        if (exists && b[oldPos].Color == color) {
+            check = true
+        } else {
+                fmt.Println("Piece not found.")
         }
-        if (check == false) {
-            fmt.Println("Piece not found.")
-        }
-        fmt.Println("out of 1 c")
     }
-    fmt.Println("out of 2 c")
 
-
+    
     check = false
     var tempBoard Board
     for (check == false) {
-        fmt.Println("Input new Piece")
+        fmt.Println("Input new Pos")
 
         var newName string
-        if (strings.Compare(oldPiece.Name, "kingF") == 0) {
+        if (strings.Compare(b[oldPos].Name, "kingF") == 0) {
             newName = "king"
         } else 
-        if (strings.Compare(oldPiece.Name, "rookF") == 0) {
+        if (strings.Compare(b[oldPos].Name, "rookF") == 0) {
             newName = "rook"
         } else {
-            newName = oldPiece.Name
+            newName = b[oldPos].Name
         }
 
-        newPiece := b.inputPiecePosNewRev(color, newName)
-        tempBoard = b.makeMove(oldPiece, newPiece)
+        newPos := b.inputPosRev(color)
+        tempBoard = b.makeMove(oldPos, newPos, makePiece(newName, b[oldPos].Color))
 
-        x := oldPiece.PosX
-        y := oldPiece.PosY
+        /*
 
-        if ((strings.Compare(oldPiece.Name, "kingF") == 0) && (x == newPiece.PosX - 2)) {
+        if ((strings.Compare(b[oldPos], "kingF") == 0) && (oldPos.X == newPos.X - 2)) {
 
-            newPiece = makePiece("rook", oldPiece.Color, x + 1, y)
-            endBoard = tempBoard.makeMove(b.getPieceAtCoords(x + 3, y), newPiece)
+            newPiece = makePiece("rook", oldPiece.Color
+            newPos = makePos(oldPos.X + 1, oldPos.Y)
+            endBoard = tempBoard.makeMove(oldPos, makePos(oldPos + 3, y), newPiece)
 
             if (endBoard.checkLegal(b, oldPiece)) {
                 check = true
@@ -1390,42 +908,41 @@ func (b Board) manualMove(color int) Board {
             }
         }
 
+        */
 
-
-
-        if (tempBoard.checkLegal(b, oldPiece)) {
-            check = true
+        if (tempBoard.checkLegal(b, oldPos)) {
             fmt.Println("Move Made.")
             return tempBoard
         }
-
-        if (check == false) {
-            fmt.Println("Move not Legal.")
-        }
+        fmt.Println("Move not Legal.")
     }
     return b
 
 }
 
 
+//The following functions are used for evaluating a position
 
-
-
-
-
+//Board -> Int
+//Returns the number of pawns on the board
+//startBoard.getPawnCount -> 16
 func (b Board) getPawnCount() int {
-    x := 0
     pawns := 0
-    for (x < len(b.Pieces)) {
-        if (b.Pieces[x].Name == "pawn") {
+    for k := range b {
+        if (b[k].Name == "pawn") {
             pawns = pawns + 1
         }
-        x = x + 1
     }
     return pawns
 }
 
-func (b Board) isEndgame() int {
+
+//Board -> Int
+//Returns number based on closeness to the endgame
+//startBoard.endgameValue() -> 0
+func (b Board) endgameValue() int {
+    //Another possibilty for the function below
+    /*
     x := 0
     t := 0
     for (x < len(b.Pieces)) {
@@ -1441,51 +958,70 @@ func (b Board) isEndgame() int {
         return 1
     }
     return 0
+    */
+
+    if (len(b) < 12) {
+        return 1
+    }
+    return 0
 }
 
-func (p Piece) distFromCenter() float64 {
-    x := float64(p.PosX)
-    y := float64(p.PosY)
+
+//Pos -> float64
+//Returns a given position's distance from the center
+//makePos(3, 4).distFromCenter() -> 1.58...
+func (pos Pos) distFromCenter() float64 {
+    x := float64(pos.X)
+    y := float64(pos.Y)
     return math.Sqrt(((x - 3.5) * (x - 3.5)) + ((y - 3.5) * (y - 3.5)))
 }
 
-func (p Piece) getScope(b Board) int {
-    return len(p.getMoves(b))
+
+//Pos Board -> int
+//Returns the number of legal moves a given piece at a pos has
+//makePos(1, 0) -> 2
+func (pos Pos) getScope(b Board) int {
+    return len(b.getMoves(pos))
 }
 
-func (p Piece) isolated(b Board) bool {
-    x := p.PosX
-    i := 0
-    for (i < len(b.Pieces)) {
-        if (b.Pieces[i].PosX == x + 1 || b.Pieces[i].PosX == x - 1) {
-            if (b.Pieces[i].Name == "pawn" && b.Pieces[i].Color == p.Color) {
+//^improve this function
+//Pos Board -> bool
+//Returns whether a given position (piece) is isolated
+//makePos(4, 6).isIsolated(startBoard) -> false
+func (pos Pos) isIsolated(b Board) bool {
+    for k := range b {
+        if (k.X == pos.X + 1 || k.X == pos.X - 1) {
+            if (b[k].Name == "pawn" && b[k].Color == b[pos].Color) {
                 return true
             }
         }
-        i = i + 1
     }
     return false
 }
 
-func (p Piece) doubled(b Board) bool {
-    x := p.PosX
-    i := 0
-    for (i < len(b.Pieces)) {
-        if (b.Pieces[i].PosX == x) {
-            if (b.Pieces[i].Name == "pawn" && b.Pieces[i].Color == p.Color) {
+
+//Pos Board -> bool
+//Returns whether a given pos (piece) is doubled
+//makePos(4, 6).isIsolated(startBoard) -> false
+func (pos Pos) isDoubled(b Board) bool {
+    for k := range b {
+        if ((k.X == pos.X) && (k.Y != pos.Y)) {
+            if (b[k].Name == "pawn" && b[k].Color == b[pos].Color) {
                 return true
             }
         }
-        i = i + 1
     }
     return false
 }
 
-//Evaluating a position
-//Probably break this into parts
-//Piece by Piece eval, and overall eval
-func (p Piece) valuePiece(board Board) int {
+
+
+//Pos Board -> int
+//Returns the value of a given pos (piece) on a given board
+//makePos(2, 0).valuePiece(startBoard) -> 344
+func (pos Pos) valuePiece(board Board) int {
     var base int
+    p := board[pos]
 
     //av minor piece 330
 
@@ -1495,7 +1031,7 @@ func (p Piece) valuePiece(board Board) int {
         base = 280
 
         //Centralization, 0 - 30
-        base = base + (int(4.95 - p.distFromCenter()) * 6)
+        base = base + (int(4.95 - pos.distFromCenter()) * 6)
 
         //for pawns, 0 - 45
         base = base + (int(float64(board.getPawnCount()) * 2.81))
@@ -1507,7 +1043,7 @@ func (p Piece) valuePiece(board Board) int {
         base = 315
 
         //Scope, 0 - 26
-        moveCount := p.getScope(board)
+        moveCount := pos.getScope(board)
         base = base + (moveCount * 2)
 
         //for pawns, 0 - 29
@@ -1521,23 +1057,21 @@ func (p Piece) valuePiece(board Board) int {
 
         //Stronger in endgame
         //0 - 69
-        if (board.isEndgame() == 1) {
+        if (board.endgameValue() == 1) {
             base = base + 69
         }
 
         //vertical scope
         //0 - 21
-        vertScopeBoard := board
-        if (p.PosX != 0) {
-            newL := makePiece("pawn", p.Color, p.PosX - 1, p.PosY)
-            vertScopeBoard = (vertScopeBoard.addPiece(newL))
+        vertScopeBoard := board.copy()
+        if (pos.X != 0) {
+            vertScopeBoard[makePos(pos.X - 1, pos.Y)] = makePiece("pawn", p.Color)
         }
-        if (p.PosX != 7) {
-            newR := makePiece("pawn", p.Color, p.PosX + 1, p.PosY)
-            vertScopeBoard = (vertScopeBoard.addPiece(newR))
+        if (pos.X != 7) {
+            vertScopeBoard[makePos(pos.X + 1, pos.Y)] = makePiece("pawn", p.Color)
         }
 
-        moveCount := p.getScope(vertScopeBoard)
+        moveCount := pos.getScope(vertScopeBoard)
         base = base + (3 * moveCount)
 
     }
@@ -1548,7 +1082,7 @@ func (p Piece) valuePiece(board Board) int {
        
         //Stronger in endgame
         //0 - 
-        //if (board.isEndgame() == 0) {
+        //if (board.endgameValue() == 0) {
         //    base = base + 26
         //}
 
@@ -1558,36 +1092,36 @@ func (p Piece) valuePiece(board Board) int {
 
         //Scope, during endgame
         //0 - 54
-        if (board.isEndgame() == 1) {
-            moveCount := p.getScope(board)
+        if (board.endgameValue() == 1) {
+            moveCount := pos.getScope(board)
             base = base + (moveCount * 2)
         }
         
     }
 
     //*Pawn: 60 - 130
-    //center, iso, doubled
+    //center, iso, isDoubled
     if (strings.Compare(p.Name, "pawn") == 0) {
         base = 100
 
         //Centralization
         //0 - 30
-        base = base + (int(4.95 - p.distFromCenter()) * 6)
+        base = base + (int(4.95 - pos.distFromCenter()) * 6)
 
         //Centralization, Central Pawns
         //0 - 50
-        if (p.PosX > 2 && p.PosX < 5) {
-            base = base + (int(4.95 - p.distFromCenter()) * 10)
+        if (pos.X > 2 && pos.X < 5) {
+            base = base + (int(4.95 - pos.distFromCenter()) * 10)
         }
 
 
         //Iso
-        if p.isolated(board) {
+        if pos.isIsolated(board) {
             base = base - 30
         }
 
-        //Doubled
-        if p.doubled(board) {
+        //isDoubled
+        if pos.isDoubled(board) {
             base = base - 10
         }
     }
@@ -1597,12 +1131,12 @@ func (p Piece) valuePiece(board Board) int {
     if ((strings.Compare(p.Name, "king") == 0) || (strings.Compare(p.Name, "kingF") == 0)) {
         base = 10000
 
-        if (board.isEndgame() == 1) {
+        if (board.endgameValue() == 1) {
             //Centralization, 0 - 40
-            base = base + (int(4.95 - p.distFromCenter()) * 8)
+            base = base + (int(4.95 - pos.distFromCenter()) * 8)
         } else {
             //De-centralization, 0 - 60
-            base = base + (60 - (int(4.95 - p.distFromCenter()) * 12))
+            base = base + (60 - (int(4.95 - pos.distFromCenter()) * 12))
         }
 
     }
@@ -1610,28 +1144,39 @@ func (p Piece) valuePiece(board Board) int {
     return base
 }
 
-func (b Board) evaluate(color int) int {
-    i := 0
-    j := 0
-    x := 0
 
-    for (x < len(b.Pieces)) {
-        if (b.Pieces[x].Color == color) {
-            i = i + b.Pieces[x].valuePiece(b)
+//Board int -> int
+//Returns a total value of a position for one color
+//*
+func (b Board) evaluate(color int) int {
+    self := 0
+    opp := 0
+
+
+    for k := range b {
+        if (b[k].Color == color) {
+            self = self + k.valuePiece(b)
         } else {
-            j = j + b.Pieces[x].valuePiece(b)
+            opp = opp + k.valuePiece(b)
         }
-        x = x + 1
     }
     //fmt.Println("i: " + strconv.Itoa(i) + " j: " + strconv.Itoa(j))
-    return (i - j)
+    return (self - opp)
 }
 
 
+//Board int int int -> Board
+//Returns a board representing the best move from a given board
+//*
 func chooseBoard(b Board, color int, turns int, turnTotal int) Board {
+    var bestBoard Board
 
     newBoards := b.getAllMoves(color)
-    bestBoard := newBoards[0]
+    if (len(newBoards) > 0) {
+        bestBoard = newBoards[0]
+    } else {
+        return b
+    }
     bestScore := -10000000
     var score int
     var x int
@@ -1664,15 +1209,19 @@ func chooseBoard(b Board, color int, turns int, turnTotal int) Board {
         }
         x = x + 1
     }
+
     if (turns == turnTotal) {
+        fmt.Println(strconv.Itoa(newBoards[y].evaluate(0)))
         return newBoards[y]
     }
+
     return chooseBoard(newBoards[y], otherColor(color), turns - 1, turnTotal)
 }
 
 
-
+//Piece -> string
 //Returns the letter that represents the piece
+//makePiece("rook", 1).displayPiece() -> "R"
 func (p Piece) displayPiece() string {
     if (strings.Compare(p.Name, "pawn") == 0) {
         return "P"
@@ -1702,7 +1251,10 @@ func (p Piece) displayPiece() string {
 
 }
 
+
+//Board int ->
 //Outputs an ASCII display of the board
+//**
 func (b Board) displayBoard(flip int) {
     x := 0
     y := 7
@@ -1711,10 +1263,10 @@ func (b Board) displayBoard(flip int) {
     if (flip == 0) {
         for (y > -1) {
             for (x < 8) {
-                if (b.checkOpen(x, y) == -1) {
+                if (b.checkSquare(makePos(x, y)) == -1) {
                     fmt.Print("* ")
                 } else {
-                    p = b.getPieceAtCoords(x, y)
+                    p = b[makePos(x, y)]
                     pName = p.displayPiece()
                     if (p.Color == 0) {
                         fmt.Print("\x1b[33;1m" + pName + "\x1b[0m ")
@@ -1733,10 +1285,10 @@ func (b Board) displayBoard(flip int) {
         y = 0
         for (y < 8) {
             for (x > -1) {
-                if (b.checkOpen(x, y) == -1) {
+                if (b.checkSquare(makePos(x, y)) == -1) {
                     fmt.Print("* ")
                 } else {
-                    p = b.getPieceAtCoords(x, y)
+                    p = b[makePos(x, y)]
                     pName = p.displayPiece()
                     if (p.Color == 0) {
                         fmt.Print("\x1b[33;1m" + pName + "\x1b[0m ")
@@ -1758,14 +1310,12 @@ func (b Board) displayBoard(flip int) {
 
 
 
-          
 func main () {
+    
+    var emptyBoard Board
+    emptyBoard = make(map[Pos]Piece)
 
-    initPieces := make([]Piece, 0)
-    emptyBoard := Board {
-        Pieces: initPieces,
-    }
-	initBoard := emptyBoard.fillBoard()
+	initBoard := emptyBoard.fillBoardSimp()
 
     initBoard.printBoard()
     initBoard.displayBoard(0)
@@ -1774,16 +1324,31 @@ func main () {
     currentColor := 0
     i := 0
 
-    /*
-    newBoards := board.Pieces[1].getMoves(board)
-    for (i < len(newBoards)) {
-        newBoards[i].printBoard()
-        if (newBoards[i].inCheck(1)) {
-            fmt.Println("in check.")
-        }
-        i = i + 1
+
+    //testing
+    if (board.isKingAlive(0)) {
+        fmt.Println("white king alive")
     }
-    */
+    if (board.isKingAlive(1)) {
+        fmt.Println("black king alive")
+    }
+    fmt.Println("onto checks")
+    if (board.isInCheck(0)) {
+        fmt.Println("white in check")
+    }
+    fmt.Println("onto checks2")
+    if (board.isInCheck(1)) {
+        fmt.Println("black in check")
+    }
+
+    if (board.gameResult(0) != -1) {
+        fmt.Println("game ended")
+    }
+    //testing end
+
+
+
+
     var nextBoard Board
     for (board.gameResult(currentColor) == -1) {
 
@@ -1807,6 +1372,8 @@ func main () {
 
         
     }
+
+    
 
 
 }
